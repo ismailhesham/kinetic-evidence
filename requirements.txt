@@ -1,24 +1,9 @@
-# Core requirements (always installed)
 gradio>=4.0
 pillow>=10.0
 matplotlib>=3.7
 numpy>=1.24
 requests>=2.31
 pytest>=7.4
-
-# Optional: AI Vision Matching & Image Generation (Uncomment if needed)
-# torch
-# diffusers
-# transformers
-# accelerate
-# safetensors
-
-# Optional: Better TTS (Uncomment for higher quality)
-# kokoro
-# piper-tts
-
-# Optional: Word Alignment (Uncomment for precise timestamps)
-# whisperx
-
-# Optional: Screenshot capture (requires `playwright install chromium`)
-# playwright
+streamlit
+python-dotenv
+rich
