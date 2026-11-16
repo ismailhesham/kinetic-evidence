@@ -1,7 +1,9 @@
-import streamlit as st
 import os
-import json
-import uuid
+# منع تحذيرات الـ Tokenizers اللي بتزحم التيرمنال
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
+
+import streamlit as st
+import time
 from pathlib import Path
 from dotenv import load_dotenv
 from pipeline import render
@@ -10,24 +12,17 @@ load_dotenv()
 
 st.set_page_config(page_title="Kinetic Evidence Studio", layout="wide", page_icon="🎬")
 
-# ستايل فخم مستوحى من Velvet Engine (أسود وذهبي)
 VELVET_CSS = """
 @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap');
-
-/* الخلفية العامة */
 .stApp {
     background: radial-gradient(circle at top center, #14131a 0%, #070709 65%) !important;
     font-family: 'Cairo', sans-serif !important;
     color: #f4f0e8 !important;
 }
-
-/* العناوين */
 h1, h2, h3 {
     font-family: 'Playfair Display', serif !important;
     color: #d4af37 !important;
 }
-
-/* الكروت */
 .velvet-card {
     background: rgba(16, 16, 22, 0.85) !important;
     border: 1px solid rgba(255, 255, 255, 0.07) !important;
@@ -35,8 +30,6 @@ h1, h2, h3 {
     padding: 24px !important;
     margin-bottom: 20px;
 }
-
-/* شريط الإحصائيات */
 .script-stats-bar {
     display: flex;
     justify-content: space-between;
@@ -49,16 +42,12 @@ h1, h2, h3 {
     color: #d8d2c7;
 }
 .script-stats-bar span b { color: #d4af37; font-size: 16px; }
-
-/* مربع النص */
 .stTextArea textarea {
     background-color: #0a0a0f !important;
     color: #f4f0e8 !important;
     border: 1px solid rgba(212, 175, 55, 0.3) !important;
     font-family: monospace !important;
 }
-
-/* زرار الرندر الذهبي */
 .stButton button {
     background: linear-gradient(135deg, #e5c158 0%, #b88e22 100%) !important;
     color: #09090b !important;
@@ -74,8 +63,6 @@ h1, h2, h3 {
     transform: translateY(-2px);
     box-shadow: 0 4px 15px rgba(212, 175, 55, 0.4);
 }
-
-/* تنسيقات إضافية */
 div[data-testid="stExpander"] {
     border: 1px solid rgba(212, 175, 55, 0.2) !important;
     background: rgba(16, 16, 22, 0.6) !important;
@@ -85,7 +72,6 @@ div[data-testid="stMetricValue"] { color: #d4af37 !important; }
 """
 st.markdown(f"<style>{VELVET_CSS}</style>", unsafe_allow_html=True)
 
-# الهيدر الفخم
 st.markdown("""
     <div style="text-align: center; padding: 20px; margin-bottom: 20px; background: linear-gradient(180deg, rgba(212,175,55,0.08) 0%, rgba(14,14,19,0.4) 100%); border: 1px solid rgba(212,175,55,0.28); border-radius: 16px;">
         <div style="display: inline-block; padding: 4px 14px; font-size: 12px; font-weight: 700; letter-spacing: 2px; color: #d4af37; border: 1px solid rgba(212,175,55,0.45); border-radius: 999px; background: rgba(212,175,55,0.08); margin-bottom: 10px;">
@@ -96,7 +82,6 @@ st.markdown("""
     </div>
 """, unsafe_allow_html=True)
 
-# تقسيم الشاشة
 col1, col2 = st.columns([7, 4], gap="large")
 
 with col1:
@@ -105,7 +90,6 @@ with col1:
     
     script = st.text_area("English Script", height=350, placeholder="Paste your continuous English documentary script here...", label_visibility="collapsed")
     
-    # شريط الإحصائيات الديناميكي
     stats_placeholder = st.empty()
     
     def update_stats(text):
@@ -121,7 +105,7 @@ with col1:
         """, unsafe_allow_html=True)
     
     update_stats(script)
-    script_input = st.empty() # placeholder just to catch changes
+    script_input = st.empty()
     
     st.markdown("<br>", unsafe_allow_html=True)
     
@@ -146,70 +130,62 @@ with col2:
     ])
     
     with st.expander("🎨 إعدادات الصورة والصوت والمصادر", expanded=False):
-        style = st.selectbox("النمط البصري", ["Investigative Essay", "Archival Historical", "Natural Environment"])
-        res = st.selectbox("دقة الفيديو", ["1080p Full HD", "720p HD Fast", "480p Quick Draft"])
-        providers = st.multiselect("مصادر الميديا", ["pixabay", "wikimedia", "internet_archive", "nasa", "ai_generated"], default=["pixabay", "wikimedia", "ai_generated"])
-        enable_captions = st.checkbox("تفعيل الترجمة السفلية", value=False)
-        enable_music = st.checkbox("تفعيل الموسيقى الخلفية", value=True)
         enable_ai_images = st.checkbox("السماح بتوليد صور AI (كحل أخير)", value=True)
+        providers = st.multiselect("مصادر الميديا", ["pixabay", "wikimedia", "internet_archive", "nasa", "ai_generated"], default=["pixabay", "wikimedia", "ai_generated"])
 
     with st.expander("🔑 مفاتيح الـ API", expanded=True):
         deepseek_key = st.text_input("مفتاح DeepSeek API", type="password", value=os.getenv("DEEPSEEK_API_KEY", ""))
         pixabay_key = st.text_input("مفتاح Pixabay API", type="password", value=os.getenv("PIXABAY_API_KEY", ""))
     st.markdown('</div>', unsafe_allow_html=True)
 
-# شاشة العرض والنتائج
 st.markdown("<hr style='border-color: rgba(212,175,55,0.2);'>", unsafe_allow_html=True)
 st.markdown("### 📽️ شاشة العرض النهائية والملفات")
 
 res_col1, res_col2 = st.columns([7, 4])
 
 with res_col1:
-    video_placeholder = st.empty()
+    progress_bar = st.progress(0.0)
     status_text = st.empty()
+    status_text.info("في انتظار بدء الرندر...")
+    video_placeholder = st.empty()
 
 with res_col2:
     st.markdown("#### 📂 ملفات المشروع")
-    st.info("ستظهر ملفات JSON الخاصة بالمشاهد والميديا والتقرير هنا بعد اكتمال الرندر.")
-    json_file = st.empty()
     report_file = st.empty()
 
-# تحديث الإحصائيات لما النص يتغير
-script_input.text_area("hidden", key="update_trigger", on_change=update_stats, args=[script], label_visibility="collapsed")
+def update_ui_progress(pct, msg):
+    progress_bar.progress(min(float(pct / 100.0), 1.0))
+    status_text.markdown(f"**الحالة الحالية:** {msg} `({pct:.2f}%)`")
 
-# دالة الرندر
 if run_btn:
     if not script.strip():
         status_text.error("❌ يرجى إدخال السكريبت أولاً.")
     else:
-        # تحديث المفاتيح في البيئة
         if deepseek_key: os.environ["DEEPSEEK_API_KEY"] = deepseek_key
         if pixabay_key: os.environ["PIXABAY_API_KEY"] = pixabay_key
         os.environ["ALLOW_AI_IMAGES"] = "true" if enable_ai_images else "false"
         
-        with st.spinner("⏳ جاري إنتاج الفيلم الوثائقي... (قد يستغرق وقتاً طويلاً)"):
-            try:
-                # تمرير الإعدادات للـ Pipeline
-                is_preview = "Preview" in mode
+        try:
+            is_preview = "Preview" in mode
+            result = render.run(script, preview=is_preview, use_llm=True, progress_callback=update_ui_progress)
+            
+            if result.get("ok"):
+                ai_count = sum(1 for log in result.get("scene_logs", []) if log.get("selected_segment", {}).get("generated"))
+                status_text.success(f"✅ اكتمل الرندر بنجاح! مدة الفيديو: {result['total_duration_sec']:.1f} ثانية.")
                 
-                # هنا بنشغل البايبلاين (كمثال بنبعت المتغيرات)
-                result = render.run(
-                    script_text=script, 
-                    preview=is_preview, 
-                    use_llm=True,
-                    # ممكن نضيف بارامترات تانية للـ render.run في المستقبل
-                )
+                st.markdown("### 📈 تقرير ما بعد الرندر")
+                stat1, stat2, stat3 = st.columns(3)
+                stat1.metric("إجمالي المشاهد", f"{result.get('scene_count', 0)}")
+                stat2.metric("صور AI مولدة", f"{ai_count}")
+                stat3.metric("مشاهد لقطات حقيقية", f"{result.get('scene_count', 0) - ai_count}")
                 
-                if result.get("ok"):
-                    status_text.success(f"✅ اكتمل الإنتاج! (Job ID: {result.get('ws', 'N/A')})")
-                    video_placeholder.video(result["output_mp4"])
-                    
-                    # عرض الملفات
-                    report_path = result.get("technical_report_path")
-                    if report_path and Path(report_path).exists():
-                        with open(report_path, "rb") as f:
-                            report_file.download_button("⬇️ تحميل التقرير التقني (JSON)", f, file_name="technical_report.json")
-                else:
-                    status_text.error(f"❌ فشل الرندر: {result.get('error')}")
-            except Exception as e:
-                status_text.error(f"⚠️ خطأ غير متوقع: {str(e)}")
+                video_placeholder.video(result["output_mp4"])
+                
+                report_path = result.get("technical_report_path")
+                if report_path and Path(report_path).exists():
+                    with open(report_path, "rb") as f:
+                        report_file.download_button("⬇️ تحميل التقرير التقني (JSON)", f, file_name="technical_report.json")
+            else:
+                status_text.error(f"❌ فشل الرندر: {result.get('error')}")
+        except Exception as e:
+            status_text.error(f"⚠️ خطأ غير متوقع: {str(e)}")
