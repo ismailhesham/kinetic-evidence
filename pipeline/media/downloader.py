@@ -6,20 +6,21 @@ import requests
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
-DEFAULT_TIMEOUT = 20
-MAX_RETRIES = 3
-
+# تقليل وقت الانتظار والمحاولات عشان ميعملش هنج
+DEFAULT_TIMEOUT = 10
+MAX_RETRIES = 2
 
 def _download_one(url: str, out_path: str, referer: str | None = None) -> bool:
     Path(out_path).parent.mkdir(parents=True, exist_ok=True)
     tmp = out_path + ".part"
-    headers = {"User-Agent": "KineticEvidence/1.0 (offline documentary)"}
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
     if referer:
         headers["Referer"] = referer
         
     for attempt in range(MAX_RETRIES):
         try:
-            with requests.get(url, headers=headers, stream=True, timeout=DEFAULT_TIMEOUT) as r:
+            # timeout=(connect_timeout, read_timeout)
+            with requests.get(url, headers=headers, stream=True, timeout=(3, DEFAULT_TIMEOUT)) as r:
                 r.raise_for_status()
                 total = 0
                 with open(tmp, "wb") as f:
@@ -27,16 +28,15 @@ def _download_one(url: str, out_path: str, referer: str | None = None) -> bool:
                         if chunk:
                             f.write(chunk)
                             total += len(chunk)
-            if total > 1024:  # file must be > 1KB to be valid
+            if total > 1024:
                 os.replace(tmp, out_path)
                 return True
         except Exception:
             if os.path.exists(tmp):
                 try: os.remove(tmp)
                 except OSError: pass
-            time.sleep(min(2 ** attempt, 6))
+            time.sleep(1) 
     return False
-
 
 def download_many(items, out_dir: str, workers: int = 4):
     """items: list of dicts with 'url' and 'out_path'."""
